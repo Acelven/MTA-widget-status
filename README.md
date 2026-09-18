@@ -19,11 +19,31 @@ The MTA feeds no longer require an API key, so there is nothing to sign up for.
 
 ## 1. Run the container (Unraid or any Docker host)
 
+A prebuilt image is published to GitHub Container Registry on every push to
+`main` (amd64 and arm64):
+
+```
+ghcr.io/acelven/mta-widget-status:latest
+```
+
+Quickest start with plain Docker:
+
+```bash
+docker run -d --name mta-widget-status --restart unless-stopped \
+  -p 8787:8787 -e MTA_STOPS=L08,127 -e TZ=America/New_York \
+  ghcr.io/acelven/mta-widget-status:latest
+```
+
+Or with compose (pulls the same image):
+
 ```bash
 cd MTA-widget-status
 cp .env.example .env        # edit MTA_STOPS at minimum
-docker compose up -d --build
+docker compose up -d
 ```
+
+To build from source instead, swap the `image:` line in `docker-compose.yml`
+for `build: .` and run `docker compose up -d --build`.
 
 Then open `http://<host>:8787/` in a browser. You should see the board render.
 
@@ -53,14 +73,10 @@ for the N/Q/R/W. Direction suffixes (`L08N`) are accepted and stripped.
 
 ### Unraid without compose
 
-Build once from the Unraid terminal, then add a container from the image:
-
-```bash
-docker build -t mta-widget-status /mnt/user/appdata/MTA-widget-status
-```
-
-In the Docker tab, **Add Container** with repository `mta-widget-status`,
-port `8787` mapped to `8787`, and the environment variables above.
+In the Docker tab, **Add Container** with repository
+`ghcr.io/acelven/mta-widget-status:latest`, port `8787` mapped to `8787`,
+and the environment variables above (at least `MTA_STOPS`). No build step is
+needed; Unraid pulls the image directly.
 
 ## 2a. iFrame mode (quickest)
 

@@ -1,7 +1,8 @@
 services:
   mta-widget-status:
-    build: .
-    image: mta-widget-status:latest
+    image: ghcr.io/acelven/mta-widget-status:latest
+    # To build from source instead, comment out the image line and uncomment:
+    # build: .
     container_name: mta-widget-status
     restart: unless-stopped
     ports:

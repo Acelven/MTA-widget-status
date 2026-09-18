@@ -1,5 +1,9 @@
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.source="https://github.com/Acelven/MTA-widget-status" \
+      org.opencontainers.image.description="NYC subway status + arrivals API and Corsair Xeneon Edge widget" \
+      org.opencontainers.image.licenses="MIT"
+
 WORKDIR /srv
 ENV PYTHONUNBUFFERED=1 \
     PORT=8787
