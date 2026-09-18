@@ -3,31 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>tr('MTA Subway Status')</title>
+  <title>'MTA Subway Status'</title>
   <link rel="icon" type="image/svg+xml" href="resources/icon.svg" />
+  <meta name="x-icue-interactive" />
   <meta name="x-icue-restrictions" data-restrictions='[{ "device": "dashboard_lcd" }]' />
   <meta name="x-icue-widget-preview" content="resources/preview.png" />
 
   <!-- Data source -->
-  <meta name="x-icue-property" content="serverUrl" data-label="tr('Server URL')" data-type="textfield" data-default="'http://192.168.1.10:8787'" />
-  <meta name="x-icue-property" content="stops" data-label="tr('Stop IDs')" data-type="textfield" data-default="''" />
-  <meta name="x-icue-property" content="routes" data-label="tr('Lines to show')" data-type="textfield" data-default="''" />
-  <meta name="x-icue-property" content="showArrivals" data-label="tr('Show arrivals')" data-type="switch" data-default="true" />
-  <meta name="x-icue-property" content="showTicker" data-label="tr('Show alert ticker')" data-type="switch" data-default="true" />
-  <meta name="x-icue-property" content="refreshSeconds" data-label="tr('Refresh interval')" data-type="slider" data-default="30" data-min="15" data-max="120" data-step="5" data-unit-label="'s'" />
+  <meta name="x-icue-property" content="serverUrl" data-label="'Server URL'" data-type="textfield" data-default="'http://192.168.1.10:8787'" />
+  <meta name="x-icue-property" content="stops" data-label="'Stop IDs'" data-type="textfield" data-default="''" />
+  <meta name="x-icue-property" content="routes" data-label="'Lines to show'" data-type="textfield" data-default="''" />
+  <meta name="x-icue-property" content="showArrivals" data-label="'Show arrivals'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showTicker" data-label="'Show alert ticker'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="refreshSeconds" data-label="'Refresh interval'" data-type="slider" data-default="30" data-min="15" data-max="120" data-step="5" data-unit-label="'s'" />
 
   <!-- Widget Personalization -->
-  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#ffffff'" />
-  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#0039a6'" />
-  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background')" data-type="color" data-default="'#0b0d12'" />
-  <meta name="x-icue-property" content="transparency" data-label="tr('Transparency')" data-type="slider" data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
+  <meta name="x-icue-property" content="textColor" data-label="'Text Color'" data-type="color" data-default="'#ffffff'" />
+  <meta name="x-icue-property" content="accentColor" data-label="'Accent Color'" data-type="color" data-default="'#0039a6'" />
+  <meta name="x-icue-property" content="backgroundColor" data-label="'Background'" data-type="color" data-default="'#0b0d12'" />
+  <meta name="x-icue-property" content="transparency" data-label="'Transparency'" data-type="slider" data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
 
   <script id="x-icue-groups" type="application/json">
   [
-    { "title": "tr('MTA Subway Status')",
+    { "title": "'MTA Subway Status'",
       "properties": ["serverUrl", "stops", "routes", "showArrivals", "showTicker", "refreshSeconds"],
-      "info": "tr('Server URL is the address of the mta-widget-status Docker container. Stop IDs are comma separated GTFS stop IDs (find them at http://SERVER:8787/api/stations?q=name). Leave Stop IDs and Lines blank to use the container defaults.')" },
-    { "title": "tr('Widget Personalization')",
+      "info": "'Server URL is the address of the mta-widget-status Docker container. Stop IDs are comma separated GTFS stop IDs (find them at http://SERVER:8787/api/stations?q=name). Leave Stop IDs and Lines blank to use the container defaults.'" },
+    { "title": "'Widget Personalization'",
       "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
   ]
   </script>
@@ -80,5 +81,10 @@
   </div>
 
   <script src="scripts/mta.js"></script>
+  <script>
+    // iCUE's importer looks for the event binding in index.html itself;
+    // scripts/mta.js makes the same assignment so browser preview also works.
+    icueEvents = { onDataUpdated: onIcueDataUpdated, onICUEInitialized: onIcueInitialized };
+  </script>
 </body>
 </html>

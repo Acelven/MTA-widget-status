@@ -90,16 +90,23 @@ http://<host>:8787/?stops=L08,A41&routes=L,A,C,F&max=2&ticker=0&arrivals=0&refre
 
 ## 2b. Native widget mode
 
-Requires the CORSAIR **iCUE Widget CLI** (`icuewidget`), downloadable from the
-CORSAIR downloads page under iCUE, and iCUE 5.47 or newer.
+Download `mta-subway-status.icuewidget` from the
+[latest release](https://github.com/Acelven/MTA-widget-status/releases/latest)
+and import it through the **+** button in the iCUE Widgets panel (or
+double-click the file). Needs iCUE 5.47 or newer.
 
-```powershell
+To rebuild the package yourself after editing `widget/` (requires Node.js):
+
+```bash
+npm install -g icuewidget-cli
 icuewidget validate widget
-icuewidget package widget
+icuewidget package widget      # emits mta-subway-status.icuewidget
 ```
 
-Import the resulting `.icuewidget` through the **+** button in the Widgets
-panel (or double-click the file). Then in the widget's settings:
+Bump `version` in `widget/manifest.json` before re-packaging so iCUE treats it
+as a new build, and remove the old widget from iCUE before importing the new one.
+
+Then in the widget's settings:
 
 - **Server URL**: `http://<host>:8787` (the container's LAN address).
 - **Stop IDs** and **Lines to show**: leave blank to use the container's
@@ -149,7 +156,7 @@ MTA-widget-status/
 │   ├── mta.py             feed fetching, caching, status + arrivals logic
 │   └── data/stations.csv  MTA station list (IDs, names, direction labels)
 └── widget/                the iCUE widget (package this folder)
-    ├── index.html, manifest.json, translation.json
+    ├── index.html, manifest.json
     ├── scripts/mta.js, styles/mta.css
     └── resources/icon.svg, preview.png
 ```
