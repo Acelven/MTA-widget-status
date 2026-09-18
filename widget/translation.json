@@ -1,0 +1,15 @@
+{
+  "MTA Subway Status": "MTA Subway Status",
+  "Server URL": "Server URL",
+  "Stop IDs": "Stop IDs (e.g. L08,127)",
+  "Lines to show": "Lines to show (blank = all)",
+  "Show arrivals": "Show arrivals",
+  "Show alert ticker": "Show alert ticker",
+  "Refresh interval": "Refresh interval",
+  "Widget Personalization": "Widget Personalization",
+  "Text Color": "Text Color",
+  "Accent Color": "Accent Color",
+  "Background": "Background",
+  "Transparency": "Background Transparency",
+  "Server URL is the address of the mta-widget-status Docker container. Stop IDs are comma separated GTFS stop IDs (find them at http://SERVER:8787/api/stations?q=name). Leave Stop IDs and Lines blank to use the container defaults.": "Server URL is the address of the mta-widget-status Docker container. Stop IDs are comma separated GTFS stop IDs (find them at http://SERVER:8787/api/stations?q=name). Leave Stop IDs and Lines blank to use the container defaults."
+}

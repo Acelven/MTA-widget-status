@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('MTA Subway Status')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg" />
+  <meta name="x-icue-restrictions" data-restrictions='[{ "device": "dashboard_lcd" }]' />
+  <meta name="x-icue-widget-preview" content="resources/preview.png" />
+
+  <!-- Data source -->
+  <meta name="x-icue-property" content="serverUrl" data-label="tr('Server URL')" data-type="textfield" data-default="'http://192.168.1.10:8787'" />
+  <meta name="x-icue-property" content="stops" data-label="tr('Stop IDs')" data-type="textfield" data-default="''" />
+  <meta name="x-icue-property" content="routes" data-label="tr('Lines to show')" data-type="textfield" data-default="''" />
+  <meta name="x-icue-property" content="showArrivals" data-label="tr('Show arrivals')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showTicker" data-label="tr('Show alert ticker')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="refreshSeconds" data-label="tr('Refresh interval')" data-type="slider" data-default="30" data-min="15" data-max="120" data-step="5" data-unit-label="'s'" />
+
+  <!-- Widget Personalization -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#ffffff'" />
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#0039a6'" />
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background')" data-type="color" data-default="'#0b0d12'" />
+  <meta name="x-icue-property" content="transparency" data-label="tr('Transparency')" data-type="slider" data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('MTA Subway Status')",
+      "properties": ["serverUrl", "stops", "routes", "showArrivals", "showTicker", "refreshSeconds"],
+      "info": "tr('Server URL is the address of the mta-widget-status Docker container. Stop IDs are comma separated GTFS stop IDs (find them at http://SERVER:8787/api/stations?q=name). Leave Stop IDs and Lines blank to use the container defaults.')" },
+    { "title": "tr('Widget Personalization')",
+      "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <link rel="stylesheet" type="text/css" href="styles/mta.css" />
+</head>
+<body>
+  <div class="widget-root" id="root">
+    <div class="widget-background" aria-hidden="true"></div>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">MTA</span>
+          <span class="brand-title">Subway Service Status</span>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div class="updated" id="updated"></div>
+      </header>
+
+      <div class="loading-state" id="loading-state">Loading MTA data...</div>
+      <div class="error-state" id="error-state" style="display:none;">
+        <div class="error-title">Cannot reach the MTA widget server</div>
+        <div class="error-detail" id="error-detail"></div>
+      </div>
+
+      <div class="content" id="content" style="display:none;">
+        <div class="main">
+          <section class="status-panel" id="status-panel">
+            <div class="chips" id="chips"></div>
+          </section>
+          <section class="arrivals-panel" id="arrivals-panel">
+            <div class="stops" id="stops"></div>
+          </section>
+        </div>
+        <footer class="ticker" id="ticker">
+          <div class="ticker-track" id="ticker-track"></div>
+        </footer>
+      </div>
+
+      <div class="detail" id="detail" style="display:none;">
+        <div class="detail-head">
+          <span class="bullet detail-bullet" id="detail-bullet"></span>
+          <span class="detail-status" id="detail-status"></span>
+          <span class="detail-close">tap to close</span>
+        </div>
+        <div class="detail-body" id="detail-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/mta.js"></script>
+</body>
+</html>

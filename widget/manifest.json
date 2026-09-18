@@ -1,0 +1,17 @@
+{
+  "author": "acelven",
+  "id": "com.acelven.mtasubwaystatus",
+  "name": "MTA Subway Status",
+  "description": "Live NYC subway service status per line plus next-train countdowns for your stops, fed by the self-hosted mta-widget-status Docker container.",
+  "version": "1.0.0",
+  "preview_icon": "resources/icon.svg",
+  "min_app_version": "5.47",
+  "min_framework_version": "1.0.0",
+  "os": [
+    { "platform": "windows" }
+  ],
+  "supported_devices": [
+    { "type": "dashboard_lcd" }
+  ],
+  "interactive": true
+}

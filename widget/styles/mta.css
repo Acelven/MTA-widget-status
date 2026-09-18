@@ -1,0 +1,160 @@
+/* MTA Subway Status widget — sizes derive from one baseline (--u) so the same
+   layout scales from the 840x344 Small slot to the 2536x696 XL slot. */
+:root {
+  --u: 1vmin;
+  --text: #ffffff;
+  --accent: #0039a6;
+  --bg: #0b0d12;
+  --bg-opacity: 1;
+
+  --fs-title: max(13px, calc(var(--u) * 4.4));
+  --fs-body: max(12px, calc(var(--u) * 3.6));
+  --fs-small: max(11px, calc(var(--u) * 2.9));
+  --fs-min: max(18px, calc(var(--u) * 6));
+  --bullet: max(30px, calc(var(--u) * 9.5));
+  --bullet-sm: max(22px, calc(var(--u) * 6.2));
+  --pad: max(8px, calc(var(--u) * 2.6));
+  --gap: max(6px, calc(var(--u) * 1.8));
+  --radius: max(6px, calc(var(--u) * 2));
+  --ticker-h: max(26px, calc(var(--u) * 7.5));
+
+  --status-good: #2ecc71;
+  --status-notice: #5ac8fa;
+  --status-planned: #f5c518;
+  --status-service-change: #ff9500;
+  --status-delays: #ff3b30;
+  --status-suspended: #d0021b;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; width: 100%; height: 100%; overflow: hidden;
+  background: transparent; color: var(--text);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: var(--fs-body); line-height: 1.2;
+  -webkit-user-select: none; user-select: none;
+}
+.widget-root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.widget-background { position: absolute; inset: 0; background: var(--bg); opacity: var(--bg-opacity); }
+.main-content { position: relative; height: 100%; display: flex; flex-direction: column; padding: var(--pad); gap: var(--gap); }
+
+/* ---- header ---- */
+.topbar { display: flex; align-items: center; gap: var(--gap); flex: 0 0 auto; min-height: var(--bullet-sm); }
+.brand { display: flex; align-items: center; gap: calc(var(--gap) * 0.7); white-space: nowrap; }
+.brand-mark {
+  background: var(--accent); color: #fff; font-weight: 800; letter-spacing: .04em;
+  font-size: var(--fs-small); padding: .15em .45em; border-radius: .3em;
+}
+.brand-title { font-weight: 700; font-size: var(--fs-title); }
+.summary { flex: 1 1 auto; font-size: var(--fs-small); opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.summary .ok { color: var(--status-good); font-weight: 700; }
+.summary .bad { color: var(--status-delays); font-weight: 700; }
+.updated { font-size: var(--fs-small); opacity: .6; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.updated.stale { color: var(--status-service-change); opacity: 1; }
+
+/* ---- states ---- */
+.loading-state, .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--gap); opacity: .85; }
+.error-title { font-weight: 700; font-size: var(--fs-title); color: var(--status-delays); }
+.error-detail { font-size: var(--fs-small); opacity: .8; max-width: 80%; word-break: break-word; }
+
+/* ---- content ---- */
+.content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--gap); }
+.main { flex: 1 1 auto; min-height: 0; display: flex; gap: calc(var(--gap) * 1.5); }
+.status-panel { flex: 1 1 0; min-width: 0; min-height: 0; overflow: hidden; }
+.arrivals-panel { display: none; flex: 1 1 0; min-width: 0; min-height: 0; overflow: hidden; }
+.has-arrivals .arrivals-panel { display: block; }
+.has-arrivals .status-panel { flex: 1.15 1 0; }
+
+/* status chips */
+.chips { display: flex; flex-wrap: wrap; gap: var(--gap); align-content: flex-start; }
+.chip {
+  display: flex; align-items: center; gap: calc(var(--gap) * 0.6);
+  padding: 2px calc(var(--gap) * 0.9) 2px 2px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.05);
+  --status-color: var(--status-good);
+}
+.chip.tappable { cursor: pointer; }
+.chip.s-good { --status-color: var(--status-good); }
+.chip.s-notice { --status-color: var(--status-notice); }
+.chip.s-planned { --status-color: var(--status-planned); }
+.chip.s-service-change { --status-color: var(--status-service-change); }
+.chip.s-delays { --status-color: var(--status-delays); }
+.chip.s-suspended { --status-color: var(--status-suspended); }
+.chip.issue { background: color-mix(in srgb, var(--status-color) 14%, transparent); border-color: color-mix(in srgb, var(--status-color) 45%, transparent); }
+.chip .status-text { font-size: var(--fs-small); font-weight: 600; color: var(--status-color); white-space: nowrap; }
+.chip .status-dot { display: none; }
+
+.bullet {
+  flex: 0 0 auto; width: var(--bullet); height: var(--bullet); border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: calc(var(--bullet) * 0.52); line-height: 1;
+  background: #6d6e71; color: #fff; position: relative;
+}
+.bullet.express { border-radius: 18%; transform: rotate(45deg); }
+.bullet.express > span { transform: rotate(-45deg); }
+.bullet-sm { width: var(--bullet-sm); height: var(--bullet-sm); font-size: calc(var(--bullet-sm) * 0.55); }
+
+/* arrivals */
+.stops { display: flex; flex-direction: column; gap: var(--gap); height: 100%; }
+.stop { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: calc(var(--gap) * 0.5); padding: calc(var(--gap) * 0.8); border-radius: var(--radius); background: rgba(255, 255, 255, 0.05); overflow: hidden; }
+.stop-head { display: flex; align-items: center; gap: calc(var(--gap) * 0.6); }
+.stop-name { font-weight: 700; font-size: var(--fs-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stop-routes { display: flex; gap: 3px; margin-left: auto; }
+.stop-routes .bullet { width: calc(var(--bullet-sm) * 0.75); height: calc(var(--bullet-sm) * 0.75); font-size: calc(var(--bullet-sm) * 0.42); }
+.dir-row { display: flex; align-items: center; gap: var(--gap); min-height: var(--bullet-sm); }
+.dir-label { flex: 0 0 24%; font-size: var(--fs-small); opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arrivals { display: flex; gap: calc(var(--gap) * 1.2); flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.arrival { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.arrival .bullet { align-self: center; }
+.arrival .min { font-size: var(--fs-min); font-weight: 700; font-variant-numeric: tabular-nums; }
+.arrival .unit { font-size: var(--fs-small); opacity: .65; }
+.arrival.now .min { color: var(--status-good); }
+.none { font-size: var(--fs-small); opacity: .5; }
+
+/* ticker */
+.ticker { display: none; flex: 0 0 var(--ticker-h); position: relative; overflow: hidden; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.has-ticker .ticker { display: block; }
+.ticker-track {
+  position: absolute; top: 0; height: 100%; display: flex; align-items: center; gap: calc(var(--gap) * 4);
+  white-space: nowrap; will-change: transform; padding-left: 100%;
+  animation: ticker-scroll var(--ticker-dur, 40s) linear infinite;
+}
+.ticker-track.static { animation: none; padding-left: 0; }
+@keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+.ticker-item { display: inline-flex; align-items: center; gap: .35em; font-size: var(--fs-small); }
+.ticker-item .tag { font-weight: 700; font-size: .85em; padding: .1em .45em; border-radius: .3em; background: var(--status-color, #666); color: #000; }
+.ticker-item .bullet { width: 1.5em; height: 1.5em; font-size: .8em; }
+
+/* detail overlay (tap a line) */
+.detail {
+  position: absolute; inset: var(--pad); border-radius: var(--radius);
+  background: rgba(8, 10, 14, 0.94); border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: var(--pad); display: flex; flex-direction: column; gap: var(--gap); overflow: hidden; cursor: pointer;
+}
+.detail-head { display: flex; align-items: center; gap: var(--gap); }
+.detail-status { font-weight: 700; font-size: var(--fs-title); }
+.detail-close { margin-left: auto; font-size: var(--fs-small); opacity: .5; }
+.detail-body { overflow: auto; display: flex; flex-direction: column; gap: var(--gap); }
+.detail-alert { font-size: var(--fs-body); }
+.detail-alert .type { font-weight: 700; color: var(--status-color, #fff); margin-right: .4em; }
+.detail-alert .desc { display: block; font-size: var(--fs-small); opacity: .75; margin-top: .2em; }
+.detail-alert .bullet { width: 1.4em; height: 1.4em; font-size: .85em; vertical-align: middle; }
+
+/* ---- responsive modes ---- */
+/* Small slot (840x344 and similar): drop chip text when arrivals share the space */
+@media (max-height: 420px) {
+  .has-arrivals .chip .status-text { display: none; }
+  .has-arrivals .chip { padding: 2px; border-width: 2px; border-color: var(--status-color); background: transparent; }
+  .has-arrivals .chip.s-good { border-color: transparent; }
+  .dir-label { flex-basis: 20%; }
+}
+/* Portrait slots: stack panels */
+@media (max-aspect-ratio: 1/1) {
+  .main { flex-direction: column; }
+  .has-arrivals .status-panel { flex: 0 0 auto; }
+  .summary { display: none; }
+}
+/* Very tight widths: shorten the brand */
+@media (max-width: 500px) {
+  .brand-title { display: none; }
+}

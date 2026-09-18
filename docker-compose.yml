@@ -1,0 +1,19 @@
+services:
+  mta-widget-status:
+    build: .
+    image: mta-widget-status:latest
+    container_name: mta-widget-status
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # Comma-separated GTFS stop IDs to show arrivals for (no N/S suffix).
+      # Find IDs with: http://<host>:8787/api/stations?q=bedford
+      MTA_STOPS: "${MTA_STOPS:-L08,127}"
+      # Optional: limit the status board to these lines (blank = every line).
+      MTA_ROUTES: "${MTA_ROUTES:-}"
+      # How often (seconds) to re-pull train positions and alerts.
+      REFRESH_SECONDS: "${REFRESH_SECONDS:-30}"
+      ALERTS_REFRESH_SECONDS: "${ALERTS_REFRESH_SECONDS:-60}"
+      MAX_ARRIVALS: "${MAX_ARRIVALS:-3}"
+      TZ: "America/New_York"
