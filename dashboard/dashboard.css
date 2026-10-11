@@ -390,3 +390,11 @@ button { font: inherit; color: inherit; }
   .icon-btn { width: 44px; height: 44px; }
   .dir { grid-template-columns: minmax(4.5em, 26%) minmax(0, 1fr); }
 }
+
+/* ---------- station complexes (settings) ---------- */
+.sel-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sel-field-label { font-size: var(--fs-sm); color: var(--muted); font-weight: 600; min-width: 5.5em; }
+.seg-bullets { display: inline-flex; gap: 2px; align-items: center; }
+.sel-top .sel-name { flex: 0 1 auto; }
+.sel-top .sel-bullets { flex: 1 1 auto; flex-wrap: wrap; }
+.result .sel-bullets { flex-wrap: wrap; }

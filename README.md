@@ -129,7 +129,10 @@ http://<host>:8787/dashboard/
 Tap the gear to set it up. Settings are saved on that tablet.
 
 - **Stations**: search by name, reorder, and pick one direction per station
-  (for example only Manhattan-bound) or both.
+  (for example only Manhattan-bound) or both. A station shows every line
+  that stops there, so Times Sq lists the 1/2/3, 7, A/C/E, N/Q/R/W and
+  shuttle together, with same-named directions like "Uptown" merged into one
+  row. Use **Lines here** to narrow a station to a single platform group.
 - **Lines**: choose which lines the status board and alerts cover, or tap
   "Use lines at my stations". None selected means every line.
 - **Display**: trains per direction, whether to show good-service lines,
@@ -150,6 +153,7 @@ http://<host>:8787/dashboard/?stops=L08-N,A41&routes=A,C,F,L&max=4&planned=0
 | Parameter | Example | Meaning |
 | --- | --- | --- |
 | `stops` | `L08-N,A41` | Stations in order. `-N` or `-S` keeps one direction. |
+| `solo` | `R16` | Show only this platform's lines instead of the whole station. |
 | `routes` | `A,C,F,L` | Lines for status and alerts. Omit for all. |
 | `max` | `4` | Trains per direction, 1 to 5. |
 | `good` | `0` | Hide the good-service bullets. |

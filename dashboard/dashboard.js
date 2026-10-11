@@ -10,7 +10,8 @@
 
   var DEFAULTS = {
     configured: false,   // false = follow the container's MTA_STOPS / MTA_ROUTES
-    stops: [],           // [{ id: 'L08', dir: 'both' | 'N' | 'S' }]
+    stops: [],           // [{ id: 'L08', dir: 'both' | 'N' | 'S', solo: false }]
+                         // solo=false shows every line at the station, solo=true only that platform
     routes: [],          // [] = every line
     max: 4,              // trains per direction
     showGood: true,
@@ -32,11 +33,11 @@
   var STATUS_RANK = { 'good': 0, 'notice': 1, 'planned': 2, 'service-change': 3, 'delays': 4, 'suspended': 5 };
   var TOKEN_ALIAS = { 'S': 'GS', 'SIR': 'SI', '6X': '6', '7X': '7', 'FS': 'GS', 'H': 'GS' };
   var BOROUGH = { 'M': 'Manhattan', 'Bk': 'Brooklyn', 'Bx': 'Bronx', 'Q': 'Queens', 'SI': 'Staten Island' };
-  var PARAM_KEYS = ['stops', 'routes', 'max', 'good', 'planned', 'alerts', 'refresh', 'theme', 'clock', 'dim'];
+  var PARAM_KEYS = ['stops', 'solo', 'routes', 'max', 'good', 'planned', 'alerts', 'refresh', 'theme', 'clock', 'dim'];
 
   var st = {
     settings: null, server: null, lines: {}, lineOrder: [], stationMeta: {},
-    data: null, lastOk: 0, error: null, offset: 0,
+    metaTried: {}, data: null, lastOk: 0, error: null, offset: 0,
     inflight: false, pending: false, fetchTimer: null,
     focusLine: null, expanded: {}, plannedOpen: null, wakeLock: null
   };
@@ -133,7 +134,7 @@
   }
   function parseStop(tok) {
     var m = /^([A-Z0-9]+?)(?:-([NS]))?$/.exec(tok);
-    return m ? { id: m[1], dir: m[2] || 'both' } : null;
+    return m ? { id: m[1], dir: m[2] || 'both', solo: false } : null;
   }
   function stopToken(s) { return s.dir === 'both' ? s.id : s.id + '-' + s.dir; }
 
@@ -142,6 +143,8 @@
     var s = clone(DEFAULTS);
     s.configured = true;
     if (qs.has('stops')) s.stops = splitList(qs.get('stops')).map(parseStop).filter(Boolean);
+    var solo = splitList(qs.get('solo'));
+    s.stops.forEach(function (x) { x.solo = solo.indexOf(x.id) >= 0; });
     if (qs.has('routes')) s.routes = splitList(qs.get('routes')).map(boardId);
     if (qs.has('max')) s.max = clampInt(qs.get('max'), 1, 5, s.max);
     if (qs.has('good')) s.showGood = qs.get('good') !== '0';
@@ -160,6 +163,8 @@
 
   function settingsToQuery(s) {
     var p = ['stops=' + s.stops.map(stopToken).join(',')];
+    var solo = s.stops.filter(function (x) { return x.solo; }).map(function (x) { return x.id; });
+    if (solo.length) p.push('solo=' + solo.join(','));
     if (s.routes.length) p.push('routes=' + s.routes.join(','));
     p.push('max=' + s.max);
     if (!s.showGood) p.push('good=0');
@@ -196,11 +201,46 @@
 
   function effStops() {
     if (st.settings.configured) return st.settings.stops;
-    return ((st.server && st.server.stops) || []).map(function (id) { return { id: id, dir: 'both' }; });
+    return ((st.server && st.server.stops) || []).map(function (id) { return { id: id, dir: 'both', solo: false }; });
   }
   function effRoutes() {
     if (st.settings.configured) return st.settings.routes;
     return ((st.server && st.server.routes) || []).map(boardId);
+  }
+
+  // Station complexes: one physical station can have several platforms with
+  // their own stop IDs (Times Sq: 127, 725, R16, 902, A27).
+  function rememberStation(r) {
+    if (!r || !r.id) return;
+    st.stationMeta[r.id] = r;
+    (r.complexStops || []).forEach(function (m) {
+      if (!st.stationMeta[m.id] || !st.stationMeta[m.id].complexStops) {
+        st.stationMeta[m.id] = Object.assign({}, m, { complex: r.complex, complexStops: r.complexStops, allRoutes: r.allRoutes });
+      }
+    });
+  }
+  function stopMembers(entry) {
+    var meta = st.stationMeta[entry.id];
+    if (entry.solo || !meta || !meta.complexStops) return [entry.id];
+    return meta.complexStops.map(function (m) { return m.id; });
+  }
+  function entryRoutes(entry) {
+    var meta = st.stationMeta[entry.id];
+    if (!meta) return [];
+    return entry.solo ? (meta.routes || []) : (meta.allRoutes || meta.routes || []);
+  }
+  function entryName(entry) {
+    var meta = st.stationMeta[entry.id];
+    return meta ? meta.name : entry.id;
+  }
+  function dirLabels(entry, key) {
+    var meta = st.stationMeta[entry.id];
+    if (!meta) return key === 'north' ? 'Northbound' : 'Southbound';
+    var list = entry.solo || !meta.complexStops ? [meta] : meta.complexStops;
+    var labels = [];
+    list.forEach(function (m) { var l = m[key]; if (l && labels.indexOf(l) < 0) labels.push(l); });
+    var real = labels.filter(function (l) { return l !== 'Last Stop'; });
+    return (real.length ? real : labels).join(' / ') || (key === 'north' ? 'Northbound' : 'Southbound');
   }
 
   // ---------------------------------------------------------------- data
@@ -211,8 +251,12 @@
     if (!st.server) pre.push(getJSON('config').then(function (c) { st.server = c; }, function () {}));
     if (!st.lineOrder.length) pre.push(getJSON('lines').then(function (r) { indexLines(r.lines); }, function () {}));
     Promise.all(pre).then(function () {
+      return loadStationMeta(effStops().map(function (x) { return x.id; }));
+    }).then(function () {
       var stops = effStops();
-      var q = 'all?stops=' + encodeURIComponent(stops.map(function (x) { return x.id; }).join(',')) +
+      var ids = [];
+      stops.forEach(function (x) { stopMembers(x).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); }); });
+      var q = 'all?stops=' + encodeURIComponent(ids.join(',')) +
         '&routes=' + encodeURIComponent(effRoutes().join(',')) +
         '&max=' + Math.min(6, st.settings.max + 1) +
         (stops.length ? '' : '&arrivals=0');
@@ -352,28 +396,54 @@
     var t = nowMs();
 
     cfg.forEach(function (c) {
-      var s = byId[c.id];
-      if (!s) {
+      var members = stopMembers(c).map(function (id) { return byId[id]; }).filter(Boolean);
+      if (!members.length) {
         box.appendChild(h('div', { class: 'stop' }, [
-          h('div', { class: 'stop-name', text: (st.stationMeta[c.id] && st.stationMeta[c.id].name) || c.id }),
+          h('div', { class: 'stop-name', text: entryName(c) }),
           h('div', { class: 'muted', text: 'Waiting for data\u2026' })
         ]));
         return;
       }
-      var head = h('div', { class: 'stop-head' }, [h('div', { class: 'stop-name', text: s.name })]);
-      var rb = h('div', { class: 'stop-routes' });
-      (s.routes || []).forEach(function (r) { rb.appendChild(bullet(r, 'xs')); });
+
+      // Header: station name plus every line served by the platforms shown.
+      var head = h('div', { class: 'stop-head' }, [h('div', { class: 'stop-name', text: st.stationMeta[c.id] ? entryName(c) : members[0].name })]);
+      var rb = h('div', { class: 'stop-routes' }), shown = {}, routes = [];
+      members.forEach(function (m) {
+        (m.routes || []).forEach(function (r) { if (!shown[r.label]) { shown[r.label] = 1; routes.push(r); } });
+      });
+      var rank = function (r) { var i = st.lineOrder.indexOf(boardId(r.route || r.label)); return i < 0 ? 99 : i; };
+      routes.sort(function (a, b) { return rank(a) - rank(b); });
+      routes.forEach(function (r) { rb.appendChild(bullet(r, 'xs')); });
       head.appendChild(rb);
       var card = h('div', { class: 'stop' }, [head]);
 
-      var dirs = c.dir === 'N' ? ['north'] : c.dir === 'S' ? ['south'] : ['north', 'south'];
-      dirs.forEach(function (k) {
-        var dir = s[k] || { label: k === 'north' ? 'Northbound' : 'Southbound', arrivals: [] };
-        var trains = (dir.arrivals || []).filter(function (a) { return a.time * 1000 > t - 30000; })
+      // Rows: one per direction label. Platforms that share a label
+      // (e.g. "Uptown" on the 1/2/3 and N/Q/R/W) merge into one row.
+      var keys = c.dir === 'N' ? ['north'] : c.dir === 'S' ? ['south'] : ['north', 'south'];
+      var rows = [], at = {};
+      keys.forEach(function (k) {
+        members.forEach(function (m) {
+          var d = m[k];
+          if (!d) return;
+          if (!(d.label in at)) { at[d.label] = rows.length; rows.push({ label: d.label, arrivals: [] }); }
+          rows[at[d.label]].arrivals = rows[at[d.label]].arrivals.concat(d.arrivals || []);
+        });
+      });
+      rows.forEach(function (r) {
+        r.trains = r.arrivals.filter(function (a) { return a.time * 1000 > t - 30000; })
+          .sort(function (a, b) { return a.time - b.time; })
           .slice(0, st.settings.max);
+      });
+      // At multi-platform stations, hide directions with nothing coming
+      // (e.g. a shuttle's "Last Stop" side or a line that isn't running).
+      if (members.length > 1 && rows.some(function (r) { return r.trains.length; })) {
+        rows = rows.filter(function (r) { return r.trains.length; });
+      }
+
+      rows.forEach(function (r) {
         var list = h('div', { class: 'trains' });
-        if (!trains.length) list.appendChild(h('span', { class: 'none', text: 'No trains scheduled' }));
-        trains.forEach(function (a, i) {
+        if (!r.trains.length) list.appendChild(h('span', { class: 'none', text: 'No trains scheduled' }));
+        r.trains.forEach(function (a, i) {
           var secs = Math.round((a.time * 1000 - t) / 1000);
           var due = secs <= 30;
           var el = h('div', { class: 'train' + (i === 0 ? ' primary' : '') + (due ? ' due' : '') }, [bullet(a, i === 0 ? 'md' : 'sm')]);
@@ -385,7 +455,7 @@
           }
           list.appendChild(el);
         });
-        card.appendChild(h('div', { class: 'dir' }, [h('div', { class: 'dir-label', text: dir.label }), list]));
+        card.appendChild(h('div', { class: 'dir' }, [h('div', { class: 'dir-label', text: r.label }), list]));
       });
       box.appendChild(card);
     });
@@ -559,10 +629,14 @@
 
   // ---------------------------------------------------------------- settings sheet
   function loadStationMeta(ids) {
-    var missing = ids.filter(function (id) { return !st.stationMeta[id]; });
+    var missing = ids.filter(function (id) {
+      var m = st.stationMeta[id];
+      return (!m || !m.complexStops) && !st.metaTried[id];
+    });
     if (!missing.length) return Promise.resolve();
     return getJSON('stations?ids=' + encodeURIComponent(missing.join(','))).then(function (r) {
-      (r.results || []).forEach(function (s) { st.stationMeta[s.id] = s; });
+      missing.forEach(function (id) { st.metaTried[id] = true; });
+      (r.results || []).forEach(rememberStation);
     }, function () {});
   }
 
@@ -579,9 +653,9 @@
     var wrap = h('div', { class: 'seg', role: 'group', 'aria-label': label || null });
     options.forEach(function (o) {
       var b = h('button', {
-        type: 'button', class: 'seg-btn' + (o.v === current ? ' on' : ''), text: o.label,
-        'aria-pressed': o.v === current ? 'true' : 'false'
-      });
+        type: 'button', class: 'seg-btn' + (o.v === current ? ' on' : ''), text: o.node ? null : o.label,
+        'aria-label': o.node ? o.label : null, 'aria-pressed': o.v === current ? 'true' : 'false'
+      }, o.node ? [o.node] : null);
       b.addEventListener('click', function () {
         Array.prototype.forEach.call(wrap.children, function (x) { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); });
         b.classList.add('on'); b.setAttribute('aria-pressed', 'true');
@@ -640,7 +714,7 @@
     draft.stops.forEach(function (sel, idx) {
       var meta = st.stationMeta[sel.id];
       var bl = h('span', { class: 'sel-bullets' });
-      ((meta && meta.routes) || []).forEach(function (r) { bl.appendChild(bullet(lineInfo(r), 'xs')); });
+      entryRoutes(sel).forEach(function (r) { bl.appendChild(bullet(lineInfo(r), 'xs')); });
       var move = function (d) {
         var j = idx + d;
         if (j < 0 || j >= draft.stops.length) return;
@@ -648,40 +722,67 @@
         renderSelectedStops(); changed();
       };
       var top = h('div', { class: 'sel-top' }, [
+        h('span', { class: 'sel-name' }, [entryName(sel)]),
         bl,
-        h('span', { class: 'sel-name' }, [meta ? meta.name : sel.id, h('span', { class: 'sel-id', text: '  ' + sel.id })]),
         h('span', { class: 'sel-actions' }, [
           h('button', { type: 'button', class: 'mini-btn', text: '\u2191', 'aria-label': 'Move up', disabled: idx === 0, onclick: function () { move(-1); } }),
           h('button', { type: 'button', class: 'mini-btn', text: '\u2193', 'aria-label': 'Move down', disabled: idx === draft.stops.length - 1, onclick: function () { move(1); } }),
           h('button', { type: 'button', class: 'mini-btn', text: '\u2715', 'aria-label': 'Remove station', onclick: function () { draft.stops.splice(idx, 1); renderSelectedStops(); changed(); } })
         ])
       ]);
-      var dirs = seg([
-        { v: 'both', label: 'Both directions' },
-        { v: 'N', label: (meta && meta.north) || 'Northbound' },
-        { v: 'S', label: (meta && meta.south) || 'Southbound' }
-      ], sel.dir, function (v) { sel.dir = v; changed(); }, 'Direction');
-      box.appendChild(h('div', { class: 'sel' }, [top, dirs]));
+      var item = h('div', { class: 'sel' }, [top]);
+
+      // Platform picker, only for stations that have more than one.
+      var group = meta && meta.complexStops && meta.complexStops.length > 1 ? meta.complexStops : null;
+      if (group) {
+        var opts = [{ v: '*', label: 'All lines' }].concat(group.map(function (m) {
+          var node = h('span', { class: 'seg-bullets' });
+          (m.routes || []).forEach(function (r) { node.appendChild(bullet(lineInfo(r), 'xs')); });
+          return { v: m.id, label: (m.routes || []).join(' ') + ' only', node: node };
+        }));
+        item.appendChild(h('div', { class: 'sel-field' }, [
+          h('span', { class: 'sel-field-label', text: 'Lines here' }),
+          seg(opts, sel.solo ? sel.id : '*', function (v) {
+            if (v === '*') { sel.solo = false; } else { sel.id = v; sel.solo = true; }
+            renderSelectedStops(); changed();
+          }, 'Lines at this station')
+        ]));
+      }
+
+      item.appendChild(h('div', { class: 'sel-field' }, [
+        h('span', { class: 'sel-field-label', text: 'Direction' }),
+        seg([
+          { v: 'both', label: 'Both' },
+          { v: 'N', label: dirLabels(sel, 'north') },
+          { v: 'S', label: dirLabels(sel, 'south') }
+        ], sel.dir, function (v) { sel.dir = v; changed(); }, 'Direction')
+      ]));
+      box.appendChild(item);
     });
+  }
+
+  function sameStation(a, b) {
+    var ma = st.stationMeta[a], mb = st.stationMeta[b];
+    return a === b || !!(ma && mb && ma.complex && ma.complex === mb.complex);
   }
 
   function renderResults(box, results, input) {
     clear(box);
     if (!results.length) { box.appendChild(h('div', { class: 'empty-note', text: 'No stations match.' })); return; }
     results.forEach(function (r) {
-      var added = draft.stops.some(function (s) { return s.id === r.id; });
+      rememberStation(r);
+      var added = draft.stops.some(function (s) { return sameStation(s.id, r.id); });
       var bl = h('span', { class: 'sel-bullets' });
-      (r.routes || []).forEach(function (x) { bl.appendChild(bullet(lineInfo(x), 'sm')); });
+      (r.allRoutes || r.routes || []).forEach(function (x) { bl.appendChild(bullet(lineInfo(x), 'sm')); });
       box.appendChild(h('button', {
         type: 'button', class: 'result', disabled: added,
         onclick: function () {
-          st.stationMeta[r.id] = r;
-          draft.stops.push({ id: r.id, dir: 'both' });
+          draft.stops.push({ id: r.id, dir: 'both', solo: false });
           input.value = '';
           clear(box);
           renderSelectedStops(); changed();
         }
-      }, [bl, h('span', { class: 'result-name', text: r.name }),
+      }, [h('span', { class: 'result-name', text: r.name }), bl,
         h('span', { class: 'result-sub', text: added ? 'Added' : (BOROUGH[r.borough] || r.borough || '') })]));
     });
   }
@@ -709,7 +810,7 @@
         });
       }, 250);
     });
-    body.appendChild(section('Stations', 'Next trains are shown for these stations, in this order. Pick a direction to hide the one you never ride.', [
+    body.appendChild(section('Stations', 'Next trains are shown for these stations, in this order. A station shows every line that stops there unless you pick one platform under Lines here.', [
       h('div', { class: 'sel-stops', id: 'sel-stops' }), search, results
     ]));
     renderSelectedStops();
@@ -743,8 +844,7 @@
       onclick: function () {
         var set = {};
         draft.stops.forEach(function (s) {
-          var m = st.stationMeta[s.id];
-          ((m && m.routes) || []).forEach(function (r) { var id = boardId(r); if (st.lines[id]) set[id] = 1; });
+          entryRoutes(s).forEach(function (r) { var id = boardId(r); if (st.lines[id]) set[id] = 1; });
         });
         draft.routes = st.lineOrder.filter(function (id) { return set[id]; });
         syncPicker(); changed();

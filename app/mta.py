@@ -49,6 +49,11 @@ _ROUTE_FEEDS["SI"] = _ROUTE_FEEDS["SIR"] = ["SI"]
 _ROUTE_FEEDS["S"] = ["1234567S", "ACE"]
 
 
+# Route order for station bullets, using the station list's own names (S, SIR).
+_STATION_ROUTE_ORDER = ["1", "2", "3", "4", "5", "6", "7", "A", "C", "E", "B", "D", "F", "M",
+                        "G", "J", "Z", "L", "N", "Q", "R", "W", "S", "SIR"]
+
+
 def feeds_for_route(route: str) -> list[str]:
     return _ROUTE_FEEDS.get(route.upper(), [])
 
@@ -222,6 +227,7 @@ def load_stations(path: Path) -> dict[str, dict]:
                 continue
             stations[sid] = {
                 "id": sid,
+                "complex": (row.get("Complex ID") or sid).strip() or sid,
                 "name": (row.get("Stop Name") or sid).strip(),
                 "borough": (row.get("Borough") or "").strip(),
                 "routes": (row.get("Daytime Routes") or "").split(),
@@ -235,6 +241,11 @@ class MTAClient:
     def __init__(self, stations_path: Path, refresh_seconds: int = 30, alerts_refresh_seconds: int = 60,
                  timeout: float = 15.0):
         self.stations = load_stations(stations_path)
+        # A complex is one physical station made of several platforms
+        # (Times Sq = 1/2/3 + 7 + N/Q/R/W + S + A/C/E).
+        self.complexes: dict[str, list[str]] = {}
+        for sid, st in self.stations.items():
+            self.complexes.setdefault(st["complex"], []).append(sid)
         self.refresh_seconds = max(10, int(refresh_seconds))
         self.alerts_refresh_seconds = max(15, int(alerts_refresh_seconds))
         self.timeout = timeout
@@ -371,14 +382,36 @@ class MTAClient:
             "updated": now,
         }
 
+    _BASIC = ("id", "name", "borough", "routes", "north", "south")
+
+    def _public_station(self, sid: str) -> dict:
+        st = self.stations[sid]
+        out = {k: st[k] for k in self._BASIC}
+        members = self.complexes.get(st["complex"], [sid])
+        out["complex"] = st["complex"]
+        out["complexStops"] = [{k: self.stations[m][k] for k in self._BASIC} for m in members]
+        seen: list[str] = []
+        for m in members:
+            for r in self.stations[m]["routes"]:
+                if r not in seen:
+                    seen.append(r)
+        order = {r: i for i, r in enumerate(_STATION_ROUTE_ORDER)}
+        out["allRoutes"] = sorted(seen, key=lambda r: order.get(r, 99))
+        return out
+
     def search_stations(self, query: str, limit: int = 25) -> list[dict]:
+        """Name search, one result per physical station (complex)."""
         q = (query or "").strip().lower()
         if not q:
             return []
-        hits = []
+        best: dict[str, str] = {}
         for st in self.stations.values():
             if q == st["id"].lower() or q in st["name"].lower():
-                hits.append({k: st[k] for k in ("id", "name", "borough", "routes", "north", "south")})
+                cur = best.get(st["complex"])
+                # Prefer the platform whose own name matches best, then the first listed.
+                if cur is None or (st["name"].lower().startswith(q) and not self.stations[cur]["name"].lower().startswith(q)):
+                    best[st["complex"]] = st["id"]
+        hits = [self._public_station(sid) for sid in best.values()]
         hits.sort(key=lambda s: (not s["name"].lower().startswith(q), s["name"]))
         return hits[:limit]
 
@@ -388,7 +421,7 @@ class MTAClient:
             sid = self.normalize_stop(raw)
             st = self.stations.get(sid) if sid else None
             if st and all(o["id"] != sid for o in out):
-                out.append({k: st[k] for k in ("id", "name", "borough", "routes", "north", "south")})
+                out.append(self._public_station(sid))
         return out
 
     # ---- background warmer -----------------------------------------------
