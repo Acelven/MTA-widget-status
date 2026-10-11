@@ -117,6 +117,63 @@ Then in the widget's settings:
 The API sends `Access-Control-Allow-Origin: *`, so the natively hosted widget
 can fetch from the container without extra proxying.
 
+## 2c. Tablet / kiosk dashboard
+
+A separate full-screen dashboard for an always-on tablet is served by the same
+container. It doesn't change the iCUE widget, which keeps living at `/`.
+
+```
+http://<host>:8787/dashboard/
+```
+
+Tap the gear to set it up. Settings are saved on that tablet.
+
+- **Stations**: search by name, reorder, and pick one direction per station
+  (for example only Manhattan-bound) or both.
+- **Lines**: choose which lines the status board and alerts cover, or tap
+  "Use lines at my stations". None selected means every line.
+- **Display**: trains per direction, whether to show good-service lines,
+  whether planned work counts as a problem, alerts panel on or off, refresh
+  rate, dark/light theme, 12 or 24-hour clock.
+- **Night dimming**: darkens the screen between two times.
+- **Kiosk link**: a URL carrying all of the above. Open it on another tablet
+  to copy the setup. A tablet applies a given link once, then keeps its own
+  edits, so a kiosk app that always reopens the same start URL won't undo
+  changes. Add `&apply=1` to force a link to apply again.
+
+Example link:
+
+```
+http://<host>:8787/dashboard/?stops=L08-N,A41&routes=A,C,F,L&max=4&planned=0
+```
+
+| Parameter | Example | Meaning |
+| --- | --- | --- |
+| `stops` | `L08-N,A41` | Stations in order. `-N` or `-S` keeps one direction. |
+| `routes` | `A,C,F,L` | Lines for status and alerts. Omit for all. |
+| `max` | `4` | Trains per direction, 1 to 5. |
+| `good` | `0` | Hide the good-service bullets. |
+| `planned` | `0` | Don't flag lines that only have planned work. |
+| `alerts` | `0` | Hide the alerts panel. Tapping a line still shows its alerts. |
+| `refresh` | `60` | Seconds between updates, 15 to 300. |
+| `theme` | `light` | `dark`, `light`, or `auto`. |
+| `clock` | `24` | 24-hour clock. |
+| `dim` | `23:00-06:00-60` | Dim from 23:00 to 06:00 at 60%. |
+
+Kiosk tips:
+
+- **Android**: Fully Kiosk Browser (or similar) with the start URL set to the
+  kiosk link gives true full screen, auto-start on boot, and keep-screen-on.
+  In plain Chrome, use "Add to Home screen" and launch it from the icon.
+- **iPad**: open in Safari, Share, "Add to Home Screen", then launch from the
+  icon. Use Guided Access to lock it to the dashboard, and set Auto-Lock to
+  Never.
+- **Screen on**: the page asks the browser to keep the screen awake, but
+  browsers only allow that over HTTPS. Over a plain `http://192.168...`
+  address, rely on the tablet's or kiosk app's stay-awake setting.
+- The page reloads itself twice a day and shifts by a few pixels every few
+  minutes to limit screen burn-in.
+
 ## What the widget shows
 
 - **Status board**: one chip per line in the MTA's order, colored bullet plus
@@ -142,7 +199,9 @@ Layout adapts from the Small landscape slot (840×344) to the XL slot
 | `GET /api/all?stops=&routes=&max=&arrivals=` | Everything the widget needs in one call. |
 | `GET /api/status?routes=` | Per-line status plus ticker alerts. |
 | `GET /api/arrivals?stops=&max=` | Next trains per direction for the stops. |
-| `GET /api/stations?q=` | Stop ID lookup. |
+| `GET /api/stations?q=` | Stop ID lookup by name. `?ids=L08,127` looks up specific IDs. |
+| `GET /api/lines` | Every line with its bullet color, in the MTA's order. |
+| `GET /dashboard/` | The tablet / kiosk dashboard. |
 | `GET /api/config` | The container's effective defaults. |
 | `GET /healthz` | Liveness check used by the Docker healthcheck. |
 
@@ -155,6 +214,7 @@ MTA-widget-status/
 │   ├── server.py          Flask API, serves widget/ for iFrame mode
 │   ├── mta.py             feed fetching, caching, status + arrivals logic
 │   └── data/stations.csv  MTA station list (IDs, names, direction labels)
+├── dashboard/             tablet / kiosk page served at /dashboard/
 └── widget/                the iCUE widget (package this folder)
     ├── index.html, manifest.json
     ├── scripts/mta.js, styles/mta.css

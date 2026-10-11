@@ -382,6 +382,15 @@ class MTAClient:
         hits.sort(key=lambda s: (not s["name"].lower().startswith(q), s["name"]))
         return hits[:limit]
 
+    def get_stations(self, ids: list[str]) -> list[dict]:
+        out = []
+        for raw in ids:
+            sid = self.normalize_stop(raw)
+            st = self.stations.get(sid) if sid else None
+            if st and all(o["id"] != sid for o in out):
+                out.append({k: st[k] for k in ("id", "name", "borough", "routes", "north", "south")})
+        return out
+
     # ---- background warmer -----------------------------------------------
     def start_background(self, default_stops: list[str], default_routes: list[str] | None) -> threading.Thread:
         def loop():

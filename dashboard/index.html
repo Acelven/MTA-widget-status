@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Subway" />
+  <title>Subway Dashboard</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">MTA</span>
+        <span class="brand-name">Subway</span>
+      </div>
+      <div class="summary s-good" id="summary" hidden></div>
+      <div class="spacer"></div>
+      <div class="clock">
+        <div class="time" id="clock-time"></div>
+        <div class="date" id="clock-date"></div>
+      </div>
+      <div class="actions">
+        <button class="icon-btn" id="btn-fullscreen" type="button" aria-label="Full screen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-settings" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="banner" id="banner" hidden></div>
+
+    <main class="grid loading" id="grid">
+      <div class="state" id="state">Loading subway data…</div>
+
+      <section class="panel" id="panel-arrivals" aria-label="Next trains">
+        <h2 class="panel-title">Next trains</h2>
+        <div class="stops scroll" id="stops"></div>
+      </section>
+
+      <section class="panel" id="panel-status" aria-label="Line status">
+        <h2 class="panel-title">Line status <span class="updated" id="updated"></span></h2>
+        <div class="lines scroll" id="lines"></div>
+      </section>
+
+      <section class="panel" id="panel-alerts" aria-label="Service alerts">
+        <h2 class="panel-title"><span id="alerts-title">Service alerts</span>
+          <button class="chip-clear" id="alerts-clear" type="button" hidden>Show all</button>
+        </h2>
+        <div class="alert-list scroll" id="alerts"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="dim" id="dim" aria-hidden="true"></div>
+
+  <div class="modal" id="settings" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="sheet-head">
+        <h2 id="settings-title">Dashboard settings</h2>
+        <button class="icon-btn" id="settings-close" type="button" aria-label="Close settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+      <div class="sheet-body" id="settings-body"></div>
+      <footer class="sheet-foot">
+        <button class="btn ghost" id="settings-cancel" type="button">Cancel</button>
+        <button class="btn primary" id="settings-save" type="button">Save</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

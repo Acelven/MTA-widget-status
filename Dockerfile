@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY widget ./widget
+COPY dashboard ./dashboard
 
 EXPOSE 8787
 HEALTHCHECK --interval=60s --timeout=10s --start-period=20s \

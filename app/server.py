@@ -2,16 +2,21 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import os
+import time
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, redirect, request, send_from_directory
 from waitress import serve
 
-from .mta import MTAClient, ROUTE_ORDER, STATUS_LABELS
+from .mta import MTAClient, ROUTE_ORDER, STATUS_LABELS, route_info
+
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 ROOT = Path(__file__).resolve().parent
 WIDGET_DIR = ROOT.parent / "widget"
+DASHBOARD_DIR = ROOT.parent / "dashboard"
 STATIONS_CSV = ROOT / "data" / "stations.csv"
 
 
@@ -68,6 +73,22 @@ def index():
     return send_from_directory(WIDGET_DIR, "index.html")
 
 
+# Tablet / kiosk dashboard. Separate from the iCUE widget, which stays on "/".
+@app.get("/dashboard")
+def dashboard_redirect():
+    return redirect("/dashboard/", code=302)
+
+
+@app.get("/dashboard/")
+def dashboard_index():
+    return send_from_directory(DASHBOARD_DIR, "index.html")
+
+
+@app.get("/dashboard/<path:filename>")
+def dashboard_files(filename):
+    return send_from_directory(DASHBOARD_DIR, filename)
+
+
 @app.get("/healthz")
 def healthz():
     return jsonify({"ok": True})
@@ -105,6 +126,7 @@ def api_all():
     stops = _list_arg("stops", CONFIG["stops"]) or []
     arrivals = client.arrivals(stops, _int_arg("max", CONFIG["max_arrivals"], 1, 6)) if (want_arrivals and stops) else None
     return jsonify({
+        "serverTime": time.time(),
         "updated": status["updated"],
         "status": status,
         "arrivals": arrivals,
@@ -114,7 +136,15 @@ def api_all():
 
 @app.get("/api/stations")
 def api_stations():
+    ids = _list_arg("ids", None)
+    if ids:
+        return jsonify({"results": client.get_stations(ids)})
     return jsonify({"results": client.search_stations(request.args.get("q", ""))})
+
+
+@app.get("/api/lines")
+def api_lines():
+    return jsonify({"lines": [dict(route_info(r), id=r) for r in ROUTE_ORDER]})
 
 
 def main() -> None:
